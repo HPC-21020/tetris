@@ -1,0 +1,15 @@
+/.DS_Store
+/.idea
+/.venv
+/Assessment.py
+/assets
+/audio_assets
+/combo.py
+/fingering.py
+/highscores.json
+/labyrinth with benefits.py
+/platformer.py
+/save1.json
+/save2.json
+/save_file_names.json
+/tetris.py
