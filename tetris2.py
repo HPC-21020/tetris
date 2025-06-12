@@ -5,6 +5,47 @@ import sys
 import tty
 import termios
 import select
+import pygame
+
+pygame.init()
+pygame.mixer.init()
+
+theme = pygame.mixer.Sound('audio_assets/tetris_theme.mp3')
+clear = pygame.mixer.Sound('audio_assets/tetris_clear.mp3')
+place = pygame.mixer.Sound('audio_assets/tetris_block_place.mp3')
+
+class Soundfx:
+    def __init__(self, sound=None):
+        """
+        Create a new sound controller.
+        sound: the audio file to control (can be None for no sound)
+        """
+        self.sound = sound
+    
+    def play(self, loops):
+        """
+        Play the sound.
+        loops: how many times to repeat (e.g: -1 = forever, 0 = play once)
+        """
+        if self.sound: 
+            self.sound.play(loops)
+    
+    def pause(self):
+        """Pause all currently playing sounds"""
+        pygame.mixer.pause()
+    
+    def stop(self):
+        """Stop playing this specific sound"""
+        if self.sound:
+            self.sound.stop()
+
+    def set_volume(self, volume):
+        """
+        Set how loud this sound should be.
+        volume: number between 0.0 (silent) and 1.0 (full volume)
+        """
+        if self.sound:
+            self.sound.set_volume(volume)
 
 def getch():
     """
@@ -12,10 +53,15 @@ def getch():
     This allows the game to keep running while checking for player input.
     Returns: the key that was pressed, or None if no key was pressed
     """
-    # Check if there's input available without blocking the program
-    if select.select([sys.stdin], [], [], 0)[0]:  # 0 = don't wait at all
-        return sys.stdin.read(1)  # Read one character
-    return None  # No key was pressed
+    
+    if select.select([sys.stdin], [], [], 0)[0]:
+        return sys.stdin.read(1)
+    return None
+
+bg_sound = Soundfx(theme) 
+bg_sound.set_volume(0.5)     
+clearfx = Soundfx(clear)     
+placefx = Soundfx(place)
 
 def render(cells, settled_cells, temp_colors=None):
     if temp_colors is None:
@@ -94,6 +140,8 @@ try:
         cellypos = 0
         orientation = 0
         active = True
+
+        bg_sound.play(-1)
         
         initial_cells = [(cellxpos + dx, cellypos + dy) for dx, dy in SHAPES[shape][orientation]]
         if any((x, y) in settled_cells for x, y in initial_cells):
@@ -115,17 +163,13 @@ try:
             key = getch()
             if key:
                 if key.lower() == 'a' and can_move(cells, -1, 0, settled_cells):
-                    # Move left
                     cellxpos -= 1
                 elif key.lower() == 'd' and can_move(cells, 1, 0, settled_cells):
-                    # Move right
                     cellxpos += 1
                 elif key.lower() == 's' and can_move(cells, 0, 1, settled_cells):
-                    # Soft drop (move down faster)
                     cellypos += 1
-                    last_move_time = time.time()  # Reset fall timer
+                    last_move_time = time.time()
                 elif key.lower() == 'w':
-                    # Rotate piece
                     new_orientation = (orientation + 1) % len(SHAPES[shape])
                     new_cells = [(cellxpos + dx, cellypos + dy) for dx, dy in SHAPES[shape][new_orientation]]
                     if can_move(new_cells, 0, 0, settled_cells):
@@ -148,7 +192,7 @@ try:
                     shape = shape_queue.pop(0)
                     shape_queue.append(random.choice(list(SHAPES.keys())))
                     shapequeue1, shapequeue2, shapequeue3 = shape_queue
-                    shape_colour = SHAPE_COLOURS[shape]  # Update color for new shape
+                    shape_colour = SHAPE_COLOURS[shape] 
 
             time.sleep(0.05)
 
