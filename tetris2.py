@@ -66,19 +66,27 @@ def getch():
 def clear():
     os.system('clear')
 
-def render(cells, settled_cells, temp_colors=None):
+def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highlight_frame=0):
     if temp_colors is None:
         temp_colors = {}
-    
+    if highlight_rows is None:
+        highlight_rows = set()
     clear()
     for y in range(HEIGHT):
         row = []
         for x in range(WIDTH):
-            if (x, y) in cells:
-                colour = temp_colors.get((x,y), cell_colours.get((x,y), COLOURS['WHITE']))
+            if y in highlight_rows:
+                # Flashing effect: alternate between white and original color
+                if highlight_frame % 2 == 0:
+                    colour = COLOURS['WHITE']
+                else:
+                    colour = temp_colors.get((x, y), cell_colours.get((x, y), COLOURS['WHITE']))
+                row.append(f'{colour}██{COLOURS["RESET"]}')
+            elif (x, y) in cells:
+                colour = temp_colors.get((x, y), cell_colours.get((x, y), COLOURS['WHITE']))
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             elif (x, y) in settled_cells:
-                colour = cell_colours.get((x,y), COLOURS['WHITE'])
+                colour = cell_colours.get((x, y), COLOURS['WHITE'])
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             else:
                 row.append('▒▒')
@@ -96,33 +104,24 @@ def find_full_rows(settled_cells):
     Returns: list of row numbers that are full
     """
     full_rows = []
-    
     for y in range(HEIGHT):
         row_cells = [(x, y) for x in range(WIDTH)]
-        
         if all((x, y) in settled_cells for x, y in row_cells):
             full_rows.append(y)
-    
     return full_rows
 
-def animate_row_clearing(settled_cells, cell_colors, full_rows, shape_queue, combo_count=0):
+def animate_row_clearing(settled_cells, cell_colors, full_rows, shape_queue):
     """
     Show a brief animation when rows are being cleared.
     This makes the line clearing more visually satisfying.
     """
-    for frame in range(4):
-        clear()
-        
-        render(settled_cells, cell_colors)
-        
-        print(f"Use A/D to move left/right, S to drop faster, W to rotate, E to hold and/or swap, K to pause, Q to quit")
-        combo_bonus = combo_count * 50
-        if combo_count > 1:
-            print(f"Clearing {len(full_rows)} row(s)! COMBO x{combo_count} (+{combo_bonus} bonus points!)")
-        else:
-            print(f"Clearing {len(full_rows)} row(s)!")
-        
-        time.sleep(0.2)
+    highlight_rows = set(full_rows)
+    for frame in range(6):
+        # Alternate highlight for flashing effect
+        render(set(), settled_cells, cell_colors, highlight_rows, frame)
+        print(f"Use A/D to move left/right, S to drop faster, W to rotate, Q to quit")
+        print(f"Clearing {len(full_rows)} row(s)!")
+        time.sleep(0.12)
 
 HEIGHT = 20
 WIDTH = 10
