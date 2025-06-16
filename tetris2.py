@@ -11,7 +11,7 @@ pygame.init()
 pygame.mixer.init()
 
 theme = pygame.mixer.Sound('audio_assets/tetris_theme.mp3')
-clear = pygame.mixer.Sound('audio_assets/tetris_clear.mp3')
+clear_sound = pygame.mixer.Sound('audio_assets/tetris_clear.mp3')
 place = pygame.mixer.Sound('audio_assets/tetris_block_place.mp3')
 
 class Soundfx:
@@ -47,6 +47,11 @@ class Soundfx:
         if self.sound:
             self.sound.set_volume(volume)
 
+bg_sound = Soundfx(theme) 
+bg_sound.set_volume(0.5)     
+clearfx = Soundfx(clear_sound)     
+placefx = Soundfx(place)
+
 def getch():
     """
     Check if a key has been pressed without waiting.
@@ -58,16 +63,14 @@ def getch():
         return sys.stdin.read(1)
     return None
 
-bg_sound = Soundfx(theme) 
-bg_sound.set_volume(0.5)     
-clearfx = Soundfx(clear)     
-placefx = Soundfx(place)
+def clear():
+    os.system('clear')
 
 def render(cells, settled_cells, temp_colors=None):
     if temp_colors is None:
         temp_colors = {}
     
-    os.system('clear')
+    clear()
     for y in range(HEIGHT):
         row = []
         for x in range(WIDTH):
@@ -85,6 +88,41 @@ def can_move(cells, dx, dy, settled_cells):
     """Check if a piece can move in a given direction without colliding."""
     new_cells = [(x + dx, y + dy) for x, y in cells]
     return all(0 <= x < WIDTH and y < HEIGHT and (x, y) not in settled_cells for x, y in new_cells)
+
+def find_full_rows(settled_cells):
+    """
+    Find all rows that are completely filled and ready to be cleared.
+    settled_cells: positions of all landed pieces
+    Returns: list of row numbers that are full
+    """
+    full_rows = []
+    
+    for y in range(HEIGHT):
+        row_cells = [(x, y) for x in range(WIDTH)]
+        
+        if all((x, y) in settled_cells for x, y in row_cells):
+            full_rows.append(y)
+    
+    return full_rows
+
+def animate_row_clearing(settled_cells, cell_colors, full_rows, shape_queue, combo_count=0):
+    """
+    Show a brief animation when rows are being cleared.
+    This makes the line clearing more visually satisfying.
+    """
+    for frame in range(4):
+        clear()
+        
+        render(settled_cells, cell_colors)
+        
+        print(f"Use A/D to move left/right, S to drop faster, W to rotate, E to hold and/or swap, K to pause, Q to quit")
+        combo_bonus = combo_count * 50
+        if combo_count > 1:
+            print(f"Clearing {len(full_rows)} row(s)! COMBO x{combo_count} (+{combo_bonus} bonus points!)")
+        else:
+            print(f"Clearing {len(full_rows)} row(s)!")
+        
+        time.sleep(0.2)
 
 HEIGHT = 20
 WIDTH = 10
@@ -135,13 +173,12 @@ try:
     last_move_time = time.time()
     fall_period = 1
 
+    bg_sound.play(-1)
     while True:
         cellxpos = 4
         cellypos = 0
         orientation = 0
         active = True
-
-        bg_sound.play(-1)
         
         initial_cells = [(cellxpos + dx, cellypos + dy) for dx, dy in SHAPES[shape][orientation]]
         if any((x, y) in settled_cells for x, y in initial_cells):
@@ -187,7 +224,37 @@ try:
                     for cell in cells:
                         cell_colours[cell] = shape_colour
 
+                    placefx.play(0)
+
                     active = False
+
+                    full_rows = find_full_rows(settled_cells)
+                    if full_rows:
+                        clearfx.play(0)
+
+                        animate_row_clearing(settled_cells, cell_colours, full_rows, [shapequeue1, shapequeue2, shapequeue3])
+
+                        # Remove full rows and shift above cells down
+                        for row in sorted(full_rows):
+                            # Remove all cells in the full row
+                            for x in range(WIDTH):
+                                settled_cells.discard((x, row))
+                                cell_colours.pop((x, row), None)
+                            # Move all cells above down by 1
+                            new_settled = set()
+                            new_colours = {}
+                            for (x, y) in settled_cells:
+                                if y < row:
+                                    new_settled.add((x, y + 1))
+                                    if (x, y) in cell_colours:
+                                        new_colours[(x, y + 1)] = cell_colours[(x, y)]
+                                else:
+                                    new_settled.add((x, y))
+                                    if (x, y) in cell_colours:
+                                        new_colours[(x, y)] = cell_colours[(x, y)]
+                            settled_cells = new_settled
+                            cell_colours = new_colours
+
                     shape_queue = [shapequeue1, shapequeue2, shapequeue3]
                     shape = shape_queue.pop(0)
                     shape_queue.append(random.choice(list(SHAPES.keys())))
