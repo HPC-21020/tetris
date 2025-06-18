@@ -71,8 +71,12 @@ def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highligh
         temp_colors = {}
     if highlight_rows is None:
         highlight_rows = set()
+
+    queue_display = render_queue_shapes(shape_queue or [])
+
     clear()
     for y in range(HEIGHT):
+        line = ""
         row = []
         for x in range(WIDTH):
             if y in highlight_rows:
@@ -90,7 +94,47 @@ def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highligh
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             else:
                 row.append('▒▒')
-        print("".join(row))
+        line += "".join(row)
+        line += "  " + queue_display[y]
+        print(line)
+
+def render_queue_shapes(shape_queue):
+    """
+    Create the visual display for the next pieces queue.
+    shape_queue: list of upcoming piece types
+    Returns: list of strings, each representing one line of the queue display
+    """
+    display_lines = []
+    for display_y in range(HEIGHT):
+        line = ""
+        if display_y == 0:
+            line = "    NEXT    "
+        elif 1 <= display_y <= 12:
+            queue_index = (display_y - 1) // 4
+            local_y = (display_y - 1) % 4
+            if queue_index < len(shape_queue):
+                shape = shape_queue[queue_index]
+                shape_color = SHAPE_COLOURS[shape]
+                shape_cells = SHAPES[shape][0]
+                min_x = min(x for x, y in shape_cells) if shape_cells else 0
+                max_x = max(x for x, y in shape_cells) if shape_cells else 0
+                min_y = min(y for x, y in shape_cells) if shape_cells else 0
+                max_y = max(y for x, y in shape_cells) if shape_cells else 0
+                offset_x = 1 - min_x + (1 - (max_x - min_x)) // 2
+                offset_y = 1 - min_y + (1 - (max_y - min_y)) // 2
+                for display_x in range(6):
+                    shape_x = display_x - offset_x - 1
+                    shape_y = local_y - offset_y
+                    if (shape_x, shape_y) in shape_cells:
+                        line += f'{shape_color}██{COLOURS["RESET"]}'
+                    else:
+                        line += '░░'
+            else:
+                line += '░░░░░░░░░░░░'
+        else:
+            line += '            '
+        display_lines.append(line)
+    return display_lines
 
 def can_move(cells, dx, dy, settled_cells):
     """Check if a piece can move in a given direction without colliding."""
