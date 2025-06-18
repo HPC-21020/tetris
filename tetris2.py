@@ -114,14 +114,17 @@ def animate_row_clearing(settled_cells, cell_colors, full_rows, shape_queue):
     """
     Show a brief animation when rows are being cleared.
     This makes the line clearing more visually satisfying.
-    """
+    """ 
     highlight_rows = set(full_rows)
     for frame in range(6):
         # Alternate highlight for flashing effect
         render(set(), settled_cells, cell_colors, highlight_rows, frame)
         print(f"Use A/D to move left/right, S to drop faster, W to rotate, Q to quit")
-        print(f"Clearing {len(full_rows)} row(s)!")
-        time.sleep(0.12)
+        if frame % 2 == 0:
+            print(f"+{len(full_rows) * 100} pts!")
+        else:
+            print("")
+        time.sleep(0.15)
 
 HEIGHT = 20
 WIDTH = 10
@@ -171,6 +174,7 @@ try:
     cell_colours = {}
     last_move_time = time.time()
     fall_period = 1
+    score = 0
 
     bg_sound.play(-1)
     while True:
@@ -187,7 +191,6 @@ try:
         while active:
             cells = [(cellxpos + dx, cellypos + dy) for dx, dy in SHAPES[shape][orientation]]
             
-            # Create temporary colors for the current falling piece
             temp_cell_colors = cell_colours.copy()
             for cell in cells:
                 temp_cell_colors[cell] = shape_colour
@@ -195,6 +198,7 @@ try:
             render(set(cells), settled_cells, temp_cell_colors)
             
             print("Use A/D to move left/right, S to drop faster, W to rotate, Q to quit")
+            print(f"Score: {score}")
             
             key = getch()
             if key:
@@ -230,10 +234,10 @@ try:
                     full_rows = find_full_rows(settled_cells)
                     if full_rows:
                         clearfx.play(0)
+                        score += 100 * len(full_rows)
 
                         animate_row_clearing(settled_cells, cell_colours, full_rows, [shapequeue1, shapequeue2, shapequeue3])
 
-                        # Remove full rows and shift above cells down
                         for row in sorted(full_rows):
                             # Remove all cells in the full row
                             for x in range(WIDTH):
