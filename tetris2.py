@@ -66,12 +66,32 @@ def getch():
 def clear():
     os.system('clear')
 
+def calculate_ghost_position(cells, settled_cells):
+    """
+    Calculate where the current piece would land if dropped straight down.
+    Returns the ghost cells showing the landing position.
+    """
+    ghost_cells = cells.copy()
+    
+    # Keep moving down until we can't move anymore
+    while True:
+        next_ghost = [(x, y + 1) for x, y in ghost_cells]
+        if can_move(next_ghost, 0, 0, settled_cells):
+            ghost_cells = next_ghost
+        else:
+            break
+    
+    return ghost_cells
+
 def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highlight_frame=0):
     if temp_colors is None:
         temp_colors = {}
     if highlight_rows is None:
         highlight_rows = set()
 
+    # Calculate ghost cells
+    ghost_cells = calculate_ghost_position(cells, settled_cells)
+    
     queue_display = render_queue_shapes(shape_queue or [])
 
     clear()
@@ -87,12 +107,19 @@ def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highligh
                     colour = temp_colors.get((x, y), cell_colours.get((x, y), COLOURS['WHITE']))
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             elif (x, y) in cells:
+                # Active piece - use solid blocks
                 colour = temp_colors.get((x, y), cell_colours.get((x, y), COLOURS['WHITE']))
                 row.append(f'{colour}██{COLOURS["RESET"]}')
+            elif (x, y) in ghost_cells and (x, y) not in cells:
+                # Ghost piece - use hollow blocks with same color as active piece
+                colour = temp_colors.get((x, y), cell_colours.get((x, y), COLOURS['WHITE']))
+                row.append(f'{colour}▒▒{COLOURS["RESET"]}')
             elif (x, y) in settled_cells:
+                # Settled pieces
                 colour = cell_colours.get((x, y), COLOURS['WHITE'])
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             else:
+                # Empty space
                 row.append('░░')
         line += "".join(row)
         line += "  " + queue_display[y]
