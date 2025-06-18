@@ -91,7 +91,13 @@ def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highligh
 
     # Calculate ghost cells
     ghost_cells = calculate_ghost_position(cells, settled_cells)
-    
+
+    # Determine the color of the current active piece (if any)
+    active_colour = None
+    if cells:
+        # Use the color of the first cell in the active piece
+        active_colour = temp_colors.get(next(iter(cells)), cell_colours.get(next(iter(cells)), COLOURS['WHITE']))
+
     queue_display = render_queue_shapes(shape_queue or [])
 
     clear()
@@ -112,7 +118,7 @@ def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highligh
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             elif (x, y) in ghost_cells and (x, y) not in cells:
                 # Ghost piece - use hollow blocks with same color as active piece
-                colour = temp_colors.get((x, y), cell_colours.get((x, y), COLOURS['WHITE']))
+                colour = active_colour if active_colour else COLOURS['WHITE']
                 row.append(f'{colour}▒▒{COLOURS["RESET"]}')
             elif (x, y) in settled_cells:
                 # Settled pieces
