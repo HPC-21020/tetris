@@ -109,9 +109,9 @@ def render_queue_shapes(shape_queue):
         line = ""
         if display_y == 0:
             line = "    NEXT    "
-        elif 1 <= display_y <= 12:
-            queue_index = (display_y - 1) // 4
-            local_y = (display_y - 1) % 4
+        elif 1 <= display_y <= 14:
+            queue_index = (display_y - 1) // 5
+            local_y = (display_y - 1) % 5
             if queue_index < len(shape_queue):
                 shape = shape_queue[queue_index]
                 shape_color = SHAPE_COLOURS[shape]
