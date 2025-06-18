@@ -93,7 +93,7 @@ def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highligh
                 colour = cell_colours.get((x, y), COLOURS['WHITE'])
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             else:
-                row.append('▒▒')
+                row.append('░░')
         line += "".join(row)
         line += "  " + queue_display[y]
         print(line)
