@@ -71,7 +71,11 @@ def calculate_ghost_position(cells, settled_cells):
     Calculate where the current piece would land if dropped straight down.
     Returns the ghost cells showing the landing position.
     """
-    ghost_cells = cells.copy()
+    # If no cells, return empty list to avoid infinite loop
+    if not cells:
+        return []
+    
+    ghost_cells = list(cells)  # Convert to list and copy
     
     # Keep moving down until we can't move anymore
     while True:
@@ -89,14 +93,11 @@ def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highligh
     if highlight_rows is None:
         highlight_rows = set()
 
-    # Calculate ghost cells
     ghost_cells = calculate_ghost_position(cells, settled_cells)
 
-    # Determine the color of the current active piece (if any)
     active_colour = None
     if cells:
-        # Use the color of the first cell in the active piece
-        active_colour = temp_colors.get(next(iter(cells)), cell_colours.get(next(iter(cells)), COLOURS['WHITE']))
+        active_colour = temp_colors.get(next(iter(cells)), temp_colors.get(next(iter(cells)), COLOURS['WHITE']))
 
     queue_display = render_queue_shapes(shape_queue or [])
 
@@ -106,26 +107,21 @@ def render(cells, settled_cells, temp_colors=None, highlight_rows=None, highligh
         row = []
         for x in range(WIDTH):
             if y in highlight_rows:
-                # Flashing effect: alternate between white and original color
                 if highlight_frame % 2 == 0:
                     colour = COLOURS['WHITE']
                 else:
-                    colour = temp_colors.get((x, y), cell_colours.get((x, y), COLOURS['WHITE']))
+                    colour = temp_colors.get((x, y), COLOURS['WHITE'])
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             elif (x, y) in cells:
-                # Active piece - use solid blocks
-                colour = temp_colors.get((x, y), cell_colours.get((x, y), COLOURS['WHITE']))
+                colour = temp_colors.get((x, y), COLOURS['WHITE'])
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             elif (x, y) in ghost_cells and (x, y) not in cells:
-                # Ghost piece - use hollow blocks with same color as active piece
                 colour = active_colour if active_colour else COLOURS['WHITE']
                 row.append(f'{colour}▒▒{COLOURS["RESET"]}')
             elif (x, y) in settled_cells:
-                # Settled pieces
-                colour = cell_colours.get((x, y), COLOURS['WHITE'])
+                colour = temp_colors.get((x, y), COLOURS['WHITE'])
                 row.append(f'{colour}██{COLOURS["RESET"]}')
             else:
-                # Empty space
                 row.append('░░')
         line += "".join(row)
         line += "  " + queue_display[y]
@@ -149,10 +145,10 @@ def render_queue_shapes(shape_queue):
                 shape = shape_queue[queue_index]
                 shape_color = SHAPE_COLOURS[shape]
                 shape_cells = SHAPES[shape][0]
-                min_x = min(x for x, y in shape_cells) if shape_cells else 0
-                max_x = max(x for x, y in shape_cells) if shape_cells else 0
-                min_y = min(y for x, y in shape_cells) if shape_cells else 0
-                max_y = max(y for x, y in shape_cells) if shape_cells else 0
+                min_x = min(x for x, _ in shape_cells) if shape_cells else 0
+                max_x = max(x for x, _ in shape_cells) if shape_cells else 0
+                min_y = min(y for _, y in shape_cells) if shape_cells else 0
+                max_y = max(y for _, y in shape_cells) if shape_cells else 0
                 offset_x = 1 - min_x + (1 - (max_x - min_x)) // 2
                 offset_y = 1 - min_y + (1 - (max_y - min_y)) // 2
                 for display_x in range(6):
@@ -187,7 +183,7 @@ def find_full_rows(settled_cells):
             full_rows.append(y)
     return full_rows
 
-def animate_row_clearing(settled_cells, cell_colors, full_rows, shape_queue):
+def animate_row_clearing(settled_cells, cell_colours, full_rows, _):
     """
     Show a brief animation when rows are being cleared.
     This makes the line clearing more visually satisfying.
@@ -195,7 +191,8 @@ def animate_row_clearing(settled_cells, cell_colors, full_rows, shape_queue):
     highlight_rows = set(full_rows)
     for frame in range(6):
         # Alternate highlight for flashing effect
-        render(set(), settled_cells, cell_colors, highlight_rows, frame)
+        render(set(), settled_cells, cell_colours, highlight_rows, frame)
+        print("wharrg")
         print(f"Use A/D to move left/right, S to drop faster, W to rotate, Q to quit")
         if frame % 2 == 0:
             print(f"+{len(full_rows) * 100} pts!")
@@ -314,26 +311,29 @@ try:
                         score += 100 * len(full_rows)
 
                         animate_row_clearing(settled_cells, cell_colours, full_rows, [shapequeue1, shapequeue2, shapequeue3])
-
-                        for row in sorted(full_rows):
-                            # Remove all cells in the full row
+                        
+                        # Remove all cells in the full rows
+                        for row in full_rows:
                             for x in range(WIDTH):
                                 settled_cells.discard((x, row))
                                 cell_colours.pop((x, row), None)
-                            # Move all cells above down by 1
-                            new_settled = set()
-                            new_colours = {}
-                            for (x, y) in settled_cells:
-                                if y < row:
-                                    new_settled.add((x, y + 1))
-                                    if (x, y) in cell_colours:
-                                        new_colours[(x, y + 1)] = cell_colours[(x, y)]
-                                else:
-                                    new_settled.add((x, y))
-                                    if (x, y) in cell_colours:
-                                        new_colours[(x, y)] = cell_colours[(x, y)]
-                            settled_cells = new_settled
-                            cell_colours = new_colours
+                        # Move all cells above cleared rows down by the number of cleared rows below them
+                        rows_cleared = sorted(full_rows)
+                        def rows_below(y):
+                            return sum(1 for row in rows_cleared if y < row)
+                        moved_cells = set()
+                        moved_colours = {}
+                        for (x, y) in list(settled_cells):
+                            shift = sum(1 for row in rows_cleared if y < row)
+                            if shift > 0:
+                                settled_cells.discard((x, y))
+                                cell_col = cell_colours.pop((x, y), None)
+                                new_y = y + shift
+                                moved_cells.add((x, new_y))
+                                if cell_col is not None:
+                                    moved_colours[(x, new_y)] = cell_col
+                        settled_cells.update(moved_cells)
+                        cell_colours.update(moved_colours)
 
                     shape_queue = [shapequeue1, shapequeue2, shapequeue3]
                     shape = shape_queue.pop(0)
